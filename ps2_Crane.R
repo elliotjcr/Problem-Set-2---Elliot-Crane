@@ -103,7 +103,8 @@ ggplot(unemp_summary, aes(x = fct_reorder(region, mean_rate), y = mean_rate, fil
   theme_minimal()
 
 # this next section of code generates a scatter plot comparing unemployment rates with the change in the rate found going into the next month
-
+# this is interesting to me because it highlights the cyclical nature of unemployment; when rates are high, they tend to decrease in the next month, and when rates are low, they tend to increase in the next month.
+# it is also worth noting that there seem to be larger jumps in the upwards direction than there are in the changes trending downwards.
 
 unemp$date <- as.Date(unemp$date)
 
