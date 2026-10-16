@@ -101,3 +101,19 @@ ggplot(unemp_summary, aes(x = fct_reorder(region, mean_rate), y = mean_rate, fil
     y = "Average Unemployment Rate"
   ) +
   theme_minimal()
+
+# this next section of code generates a scatter plot comparing unemployment rates with the change in the rate found going into the next month
+
+
+unemp$date <- as.Date(unemp$date)
+
+ggplot(unemp, aes(x = unemployment_rate, y = lead(unemployment_rate_change), color = region)) +
+  geom_point(alpha = 0.7, size = 1.8) +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "6 months") +
+  labs(
+    title = "Unemployment Rate vs. Upcoming Change (points)",
+    x = "Unemployment Rate",
+    y = "Next Month Unemployment Change",
+    color = "Region"
+  ) +
+  theme_minimal()
