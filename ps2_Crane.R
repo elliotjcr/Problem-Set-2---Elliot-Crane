@@ -26,28 +26,46 @@ unemp <- unemp_raw |>
       symbol == "NYUR" ~ "New York"
     )
   )
-
-# 4.3: Repeat the month-over-month top increases/decreases but exclude all observations from 2020
-# Remove 2020 observations, compute month-over-month change within each region, then
-# find the top 5 (plus ties) increases and decreases.
-
-unemp_no_covid <- unemp |> 
-  filter(format(date, "%Y") != "2020")
-
-unemp2_no_covid <- unemp_no_covid |> 
+unemp <- unemp |>
   arrange(region, date) |> 
-  group_by(region) |> 
-  mutate(mom_change = unemployment_rate - lag(unemployment_rate)) |> 
+  group_by(region) |>
+  mutate(
+    unemployment_rate = replace(
+      unemployment_rate,
+      date == as.Date("2025-10-01"),
+      unemployment_rate[date == as.Date("2025-09-01")]
+    )
+  ) |>
   ungroup()
 
-unemp_top_increases_no_covid <- unemp2_no_covid |> 
-  filter(!is.na(mom_change)) |> 
-  slice_max(order_by = mom_change, n = 5, with_ties = TRUE)
+unemp <- unemp |>
+  arrange(region, date) |>
+  group_by(region) |>
+  mutate(unemployment_rate_change = unemployment_rate - lag(unemployment_rate)) |>
+  ungroup()
 
-unemp_top_decreases_no_covid <- unemp2_no_covid |> 
-  filter(!is.na(mom_change)) |> 
-  slice_min(order_by = mom_change, n = 5, with_ties = TRUE)
+unemp_recent <- unemp |>
+  filter(date >= as.Date("2015-01-01"))
 
-# Print results for quick inspection
-unemp_top_increases_no_covid
-unemp_top_decreases_no_covid
+unemp_summary <- unemp |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate,  na.rm = TRUE),
+    max_rate  = max(unemployment_rate,  na.rm = TRUE)
+  )
+
+unemp_recent_summary <- unemp_recent |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate,  na.rm = TRUE),
+    max_rate  = max(unemployment_rate,  na.rm = TRUE)
+  )
+
+unemp_top_increases <- unemp |>
+  slice_max(order_by = unemployment_rate_change, n = 5, with_ties = TRUE)
+
+unemp_top_decreases <- unemp |>
+  slice_min(order_by = unemployment_rate_change, n = 5, with_ties = TRUE)
+
