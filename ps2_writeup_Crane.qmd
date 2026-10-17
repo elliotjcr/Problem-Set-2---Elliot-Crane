@@ -8,4 +8,150 @@ format:
     embed-resources: true
 ---
 
-## 
+## <https://github.com/elliotjcr/Problem-Set-2---Elliot-Crane.git>
+
+## Data
+
+The data used in this project is sourced from FRED and contains monthly unemployment rates in California, New York, Oregon, Texas, as well as the United States as a whole, dating back all the way to January of 1976.
+
+```{r}
+library(tidyverse)
+unemp_raw <- read_rds("data/unemp_raw.rds")
+head(unemp_raw)
+```
+
+## Wrangling
+
+```{r}
+library(knitr)
+
+unemp <- unemp_raw |>
+  rename(unemployment_rate = price) |>
+  mutate(
+    region = case_when(
+      symbol == "UNRATE" ~ "United States",
+      symbol == "ORUR" ~ "Oregon",
+      symbol == "CAUR" ~ "California",
+      symbol == "TXUR" ~ "Texas",
+      symbol == "NYUR" ~ "New York"
+    )
+  )
+unemp <- unemp |>
+  arrange(region, date) |> 
+  group_by(region) |>
+  mutate(
+    unemployment_rate = replace(
+      unemployment_rate,
+      date == as.Date("2025-10-01"),
+      unemployment_rate[date == as.Date("2025-09-01")]
+    )
+  ) |>
+  ungroup()
+
+unemp <- unemp |>
+  arrange(region, date) |>
+  group_by(region) |>
+  mutate(unemployment_rate_change = unemployment_rate - lag(unemployment_rate)) |>
+  ungroup()
+
+unemp_recent <- unemp |>
+  filter(date >= as.Date("2015-01-01"))
+
+unemp_summary <- unemp |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate,  na.rm = TRUE),
+    max_rate  = max(unemployment_rate,  na.rm = TRUE)
+  )
+
+unemp_recent_summary <- unemp_recent |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate,  na.rm = TRUE),
+    max_rate  = max(unemployment_rate,  na.rm = TRUE)
+  )
+
+unemp_top_increases <- unemp |>
+  slice_max(order_by = unemployment_rate_change, n = 5, with_ties = TRUE)
+
+unemp_top_decreases <- unemp |>
+  slice_min(order_by = unemployment_rate_change, n = 5, with_ties = TRUE)
+
+unemp_no_covid <- unemp |> 
+  filter(year(date) != "2020")
+
+unemp_top_increases_no_covid  <- unemp_no_covid |>
+  slice_max(order_by = unemployment_rate_change, n = 5, with_ties = TRUE)
+
+unemp_top_decreases_no_covid  <- unemp_no_covid |>
+  slice_min(order_by = unemployment_rate_change, n = 5, with_ties = TRUE)
+
+# the following table shows the mean, minimum, and maximum unemployment rates found in each of the four regions (plus the United States altogether) since January 1976.
+kable(unemp_summary)
+
+# the following table shows more recent mean, minimum, and maximum unemployment rates found in each of the four regions (plus the United States altogether) filtered by including only the data given after January 2015.
+kable(unemp_recent_summary)
+
+# the following table shows the five (including ties) greatest month over month increases in unemployment rates shown in the data, excluding those from the year of 2020.
+kable(unemp_top_increases_no_covid)
+
+# the following table shows the five (including ties) greatest month over month decreases in unemployment rates shown in the data, excluding those from the year of 2020.
+kable(unemp_top_decreases_no_covid)
+```
+
+## Visualization
+
+```{r}
+#the graph below shows unemployment rates over time, with each region's rates depicted by a line in its own color.
+ggplot(unemp, aes(x = date, y = unemployment_rate, color = region)) +
+  geom_line() +        # or geom_col(), geom_point(), etc.
+  labs(title = "Unemployment Rates by Region", x = "Date", y = "Unemployment Rate") +
+  theme_minimal()
+
+#the graphs below show unemployment rates over time, with each region's rates depicted by a line in its own graph.
+ggplot(unemp, aes(x = date, y = unemployment_rate, color = region)) +
+  geom_line() +
+  facet_wrap(~ region) +
+  labs(
+    title = "Unemployment Rate by Region",
+    x = "Date",
+    y = "Unemployment Rate"
+  ) +
+  theme_minimal()
+
+#the graph below shows the average unemployment rate in each region, as well as the overall average US unemployment rate since January 1976.
+ggplot(unemp_summary, aes(x = fct_reorder(region, mean_rate), y = mean_rate, fill = region)) +
+  geom_col() + 
+  labs(
+    title = "Average Unemployment Rate by Region",
+    x = "Region",
+    y = "Average Unemployment Rate"
+  ) +
+  theme_minimal()
+
+# this next section of code generates a scatter plot comparing unemployment rates with the change in the rate found going into the next month
+# this is interesting to me because it highlights the cyclical nature of unemployment; when rates are high, they tend to decrease in the next month, and when rates are low, they tend to increase in the next month.
+# it is also worth noting that there seem to be larger jumps in the upwards direction than there are in the changes trending downwards.
+
+
+#the graph below shows every unemployment rate found in the data, paired with the change in the unemployment rate over the next month. Each dot gets its position on the x-axis from its unemployment rate, and gets its position on the y-axis from the change in the rate over the next month.
+
+unemp$date <- as.Date(unemp$date)
+
+ggplot(unemp, aes(x = unemployment_rate, y = lead(unemployment_rate_change), color = region)) +
+  geom_point(alpha = 0.7, size = 1.8) +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "6 months") +
+  labs(
+    title = "Unemployment Rate vs. Upcoming Change (points)",
+    x = "Unemployment Rate",
+    y = "Next Month Unemployment Change",
+    color = "Region"
+  ) +
+  theme_minimal()
+```
+
+## Reflection
+
+This problem set really familiarized me with all the different aspects of RStudio. The most straight foward thing about this process was the generation of charts from pre-existing data. I had to use copilot to get me started, but it provided a good launch off point from which I got the hang of things pretty quickly. A more difficult component of this process was managing all the files and operations that came with it. For awhile my computer stopped being able to save the project, and that was slightly jarring. Luckily, I was able to reopen it separately from my desktop and then it started working again. I think this issue was caused by a rendering of my Quarto document that did not have sufficient preparation for such a task. The part of the workflow that I found the most improvement in was the whole process of saving the project and pushing it out to github/my repository. I now see how the two interfaces interact in real time and how that can be beneficial for managing and organizing the workload.
